@@ -11,5 +11,6 @@
 
 
 https://github.com/safwanrahman/django-webpush/blob/master/webpush/models.py
+sudo letsencrypt certonly -a webroot --webroot-path=/usr/share/nginx/website.com/ -d website.com
 
 BFk6hY9OL_GJ3Tba1x1hLu7lUb6MPWV_pollq-hE1gGsWupElJd0l67Jp31llws3hAs503tsRRgO9U5bhMDX9W0
