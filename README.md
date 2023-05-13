@@ -1,93 +1,53 @@
-user www-data;
-worker_processes auto;
-pid /run/nginx.pid;
-include /etc/nginx/modules-enabled/*.conf;
-
-events {
-	worker_connections 786;
-	#multi_accept on;
+upstream ws {
+ server web-app.abchospitaleg.com:8000;
 }
 
-http {
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_read_timeout 36000s;
+server {
+    listen 8001 ssl;  
+    
+    server_name web-app.abchospitaleg.com;
+    
+    root /var/www/html/web-app.abchospitaleg.com;     
+    
+    ssl_certificate /home/webserver-ubuntu/root/ticket-back/ssl/webapp.crt;
+    ssl_certificate_key /home/webserver-ubuntu/root/ticket-back/ssl/webapp.key;
+    
 
-        ##
-        # Connection header for WebSocket reverse proxy
-        ##
-       map $http_upgrade $connection_upgrade {
-           default upgrade;
-           ''      close;
-       }
+    location = /favicon.ico { access_log off; log_not_found off; }
+    
+    location /staticfiles/ {
+        root /home/webserver-ubuntu/root/ticket-back;
+    }
+    
+    location /static/ {
+        root /home/webserver-ubuntu/root/ticket-back;
+    }
 
-	##
-	# Basic Settings
-	##
-        client_max_body_size 20M;
-	sendfile on;
-	tcp_nopush on;
-	types_hash_max_size 2048;
-	# server_tokens off;
+    location /media/ {
+       root /home/webserver-ubuntu/root/ticket-back;
+    }
 
-	# server_names_hash_bucket_size 64;
-	# server_name_in_redirect off;
+    location / {
+        include proxy_params;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Server $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	proxy_headers_hash_max_size 512;
+	proxy_headers_hash_bucket_size 128; 
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_pass http://unix:/run/daphne.sock; 
+        return 301 https://web-app.abchospitaleg.com;       
+   }
+    location /ws/ {
+        proxy_pass https://ws/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+        proxy_send_timeout 86400;
+    }   
+    
+   error_log /home/webserver-ubuntu/root/ticket-back/logs/error.log error;
 
-	include /etc/nginx/mime.types;
-	default_type application/octet-stream;
-
-	##
-	# SSL Settings
-	##
-
-	ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3; # Dropping SSLv3, ref: POODLE
-	ssl_prefer_server_ciphers on;
-
-	##
-	# Logging Settings
-	##
-
-	access_log /var/log/nginx/access.log;
-	error_log /var/log/nginx/error.log;
-
-	##
-	# Gzip Settings
-	##
-
-	gzip on;
-
-	# gzip_vary on;
-	# gzip_proxied any;
-	# gzip_comp_level 6;
-	# gzip_buffers 16 8k;
-	# gzip_http_version 1.1;
-	# gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
-
-	##
-	# Virtual Host Configs
-	##
-	
-	include /etc/nginx/conf.d/*.conf;
-	include /etc/nginx/sites-enabled/*;
 }
-
-
-#mail {
-#	# See sample authentication script at:
-#	# http://wiki.nginx.org/ImapAuthenticateWithApachePhpScript
-#
-#	# auth_http localhost/auth.php;
-#	# pop3_capabilities "TOP" "USER";
-#	# imap_capabilities "IMAP4rev1" "UIDPLUS";
-#
-#	server {
-#		listen     localhost:110;
-#		protocol   pop3;
-#		proxy      on;
-#	}
-#
-#	server {
-#		listen     localhost:143;
-#		protocol   imap;
-#		proxy      on;
-#	}
-#}
